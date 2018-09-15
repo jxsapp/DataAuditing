@@ -1,0 +1,61 @@
+SuperviseDefaultCommand.prototype._flow_getItems = SuperviseDefaultCommand.prototype.getItems;
+SuperviseDefaultCommand.prototype.getItems = function() {
+	var items = this._flow_getItems.apply(this, arguments);
+	if (items) {
+		var manager = registry.get("SuperviseManager") || registry.get("CurrentManager");
+		var cmdFactory = manager.getCommandFactory();
+		if (util.checkFunctionValid("MANAGE_CREATEREPORT_WORKFLOW")) {
+			if (!cmdFactory.cmdMapping["FlowCommand"]) {
+				cmdFactory.cmdMapping["FlowCommand"] = "smartbi.flow.FlowCommand";
+			}
+		}
+		if (util.checkFunctionValid("MANAGE_TOOLKIT_MONITORWORKFLOW")) {
+			if (!cmdFactory.cmdMapping["MyInstanceCommand"]) {
+				cmdFactory.cmdMapping["MyInstanceCommand"] = "smartbi.workflow.MyInstanceCommand";
+			}
+		}
+		
+		var datamanagement;
+		for (var i = 0; i < items.length; i++) {
+			if (items[i].id == "Datamanagement") {
+				datamanagement = items[i].items;
+				break;
+			}
+		}
+		if (datamanagement) {
+			var dataCollection;
+			for (var i = 0; i < datamanagement.length; i++) {
+				if (datamanagement[i].id == "DATA_COLLECTION") {
+					dataCollection = datamanagement[i];
+					break;
+				}
+			}
+			if (dataCollection) {
+				if (!dataCollection.items) {
+					dataCollection.itmes = [];
+				}
+				var newFlow = {
+					id : "NEW_FLOW",
+					label : "${NewFlow}",
+					info : "${NewFlowInfo}",
+					priority : 4,
+					funcId : "MANAGE_CREATEREPORT_WORKFLOW",
+					licenses : "WriteBack&ReportAudit",
+					command : [ "FlowCommand", "CREATE" ]
+				};
+				var monitorWorkFlow = {
+					id : "MONITOR_WORKFLOW",
+					label : "${MonitorWorkflow}",
+					info : "${MonitorWorkflowInfo}",
+					priority : 4,
+					funcId : "MANAGE_TOOLKIT_MONITORWORKFLOW",
+					licenses : "ReportAudit",
+					command : [ "MyInstanceCommand", "OPEN" ]
+				};
+				dataCollection.items.push(newFlow);
+				dataCollection.items.push(monitorWorkFlow);
+			}
+		}
+	}
+	return items;
+}

@@ -1,0 +1,21 @@
+MetadataSearchView.prototype.dataAuditing_getOtherFilterTypes = MetadataSearchView.prototype.getOtherFilterTypes;
+MetadataSearchView.prototype.getOtherFilterTypes = function() {
+
+	var types = this.dataAuditing_getOtherFilterTypes();
+	var util = jsloader.resolve('freequery.common.util');
+	var found = false;
+	for (var i = 0, len = types.length; i < len; i++) {
+		if (types[i] == 'Macro') {
+			found = true;
+			if (util.hasLicense('WriteBack') && util.hasLicense('ReportAudit')) { // 回写的license 控制流程定义
+				types.splice(i, 0, 'WORKFLOW'); // 灵活分析之前，透视分析之后
+			}
+			break;
+		}
+	}
+	if (!found && util.hasLicense('WriteBack') && util.hasLicense('ReportAudit')) { // 回写的license 控制流程定义
+		types.unshift('WORKFLOW');
+	}
+	return types;
+
+};

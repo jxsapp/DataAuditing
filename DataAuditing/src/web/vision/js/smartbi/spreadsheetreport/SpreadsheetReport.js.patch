@@ -1,0 +1,1287 @@
+var DialogFactory = imports('freequery.dialog.dialogFactory');
+var MacroService = imports("bof.macro.services.MacroService").getInstance();
+SpreadsheetReport.prototype.audit_openQueryCallback = SpreadsheetReport.prototype.openQueryCallback;
+SpreadsheetReport.prototype.audit_doParamChange = SpreadsheetReport.prototype.doParamChange;
+SpreadsheetReport.prototype.audit_changeSheet = SpreadsheetReport.prototype.changeSheet;
+SpreadsheetReport.prototype._audit_doRefresh = SpreadsheetReport.prototype.doRefresh;
+SpreadsheetReport.prototype.doParamChange = function(paramPanel, param, oldId, newId, oldValue, newValue, relate) {
+	if(this.dataAuditingflg){
+		if(window.bof_offline_xhr)
+			return;
+		var ret = util.remoteInvoke("RepositoryService", "getInfoBySpreadsheetId", [ this.queryId ]);
+		if ((ret && ret.succeeded && ret.result)) {
+			this.refreshButtonStatus(this);
+		}
+	}
+	this.doingVerify = false;
+	return this.audit_doParamChange(paramPanel, param, oldId, newId, oldValue, newValue, relate);
+
+}
+
+SpreadsheetReport.prototype._audit_doOnMobileXRefresh = SpreadsheetReport.prototype.doOnMobileXRefresh;
+SpreadsheetReport.prototype.doOnMobileXRefresh = function() {
+	this._audit_doOnMobileXRefresh.apply(this, arguments);
+	if (this.dataAuditingflg) {
+		if (window.bof_offline_xhr) {
+			return;
+		}
+		var ret = util.remoteInvoke("RepositoryService", "getInfoBySpreadsheetId", [ this.queryId ]);
+		if (ret && ret.succeeded && ret.result) {
+			this.refreshButtonStatus(this);
+		}
+	}
+}
+
+SpreadsheetReport.prototype.doRefresh = function(fromButton, delayMask) {
+	 this._audit_doRefresh(fromButton, delayMask);
+	this.doingVerify = false;
+}
+
+SpreadsheetReport.prototype.changeSheet = function(i, styleOnly){
+	var ret = this.audit_changeSheet(i, styleOnly);
+	if(this.dataAuditingflg){
+		if(window.bof_offline_xhr)
+			return;
+		var ret = util.remoteInvoke("RepositoryService", "getInfoBySpreadsheetId", [ this.queryId ]);
+		if ((ret && ret.succeeded && ret.result)) {
+			this.refreshButtonStatus(this);
+		}
+		if (this.doingVerify){
+			var that = this;
+			setTimeout(function(){
+				that.doVerify();
+			},500);
+		}
+	}		
+	return ret;
+}
+SpreadsheetReport.prototype.openQueryCallback = function(ret) {
+	var sheetName = this.currentNode.sheetName;
+	if(sheetName){
+		for(var i=0;i<ret.result.sheetNames.length;i++){
+			if(ret.result.sheetNames[i] == sheetName){
+				ret.result.activeSheetIndex = i;
+			}
+		}		
+	}	
+	this.audit_openQueryCallback(ret);
+	var reportResId = this.queryId;
+	var _this = this;
+	if(window.bof_offline_xhr)
+		return;
+	var ret = util.remoteInvoke("RepositoryService", "getInfoBySpreadsheetId", [ reportResId ]);
+	this.dataAuditingflg = false;
+	setTimeout(function() {	
+		if ((ret && ret.succeeded && ret.result)) {
+			_this.dataAuditingflg = true;
+			if(!_this.spreadsheetReportWriteBack){
+				var isWebBrowserCrl = false;
+				var searchURL = window.location.search;  
+				searchURL = searchURL.substring(1, searchURL.length);  
+				var urlParams = searchURL.split("&");
+				for(var k=0;k<urlParams.length;k++){
+					if(urlParams[k].split("=")[0]=="isWebBrowserCrl"&&urlParams[k].split("=")[1]=="true"){
+						isWebBrowserCrl = true;
+					}
+				}
+				if(!isWebBrowserCrl && util.hasLicense('ReportAudit')){
+					alert("${IsSpreadsheetReportWriteBack}。");
+				} 			
+				return;
+			}
+			
+			var task = _this.getCurrentReportTask(_this);
+			var isBySheetRet = util.remoteInvoke('RepositoryService', 'isBySheet', [ reportResId]);
+			_this.isBySheet = isBySheetRet.result;
+			_this.addButton(_this);
+			var info = ret.result;
+			_this.info = info;
+
+			var macroRet = util.remoteInvokeEx('MacroService', 'getMacroModulesByResId', [ info.id ]);
+			if (macroRet && macroRet.succeeded) {
+				if (!_this.modules) {
+					_this.modules = {};
+				}
+				for ( var i = 0; i < macroRet.result.length; i++) {
+					var macro = macroRet.result[i];
+					if (!macro.disabled && macro.moduleType == "ClientSide") {
+						if (_this.modules[macro.eventName]) {
+							var array = _this.modules[macro.eventName];
+							array[array.length] = macro;
+						} else {
+							_this.modules[macro.eventName] = [ macro ];
+						}
+					}
+				}
+			}
+			
+			if (!_this.openByParamValueSetting && _this.visibleSheetNames.length > 1) {
+				_this.elemTdSheets.innerHTML = "";
+				var table = document.createElement("TABLE");
+				_this.sheetsTable = table;
+				_this.addListener(table, "click", _this.doSheetTableClick, _this);
+				var div = document.createElement("DIV");
+				div.className = "spreadsheet_sheets_table";
+				div.appendChild(table);
+				table.style.borderCollapse = "collapse";
+				if (!_this.elemTdSheets) {
+					var tr = _this.elem_outerTable.insertRow(0);
+					_this.elemTdSheets = tr.insertCell(-1);
+					_this.elemTdSheets.align = "right";
+				} else {
+					_this.elemTdSheetsLabel.style.display = "";
+				}
+				_this.elemTdSheets.appendChild(div);
+				var tr = table.insertRow(-1);
+				for (var i = 0; i < _this.visibleSheetNames.length; i++) {
+					var td = tr.insertCell(-1);
+					td._sheetName = _this.visibleSheetNames[i];
+					td.innerText = _this.visibleSheetNames[i];
+					if (_this.sheetNames[_this.currentSheetIndex] == _this.visibleSheetNames[i]) {
+						td.className = "spreadsheet_selected_sheet";
+						_this.selectedSheetTd = td;
+						if (_this.sheetColors && _this.sheetColors[i] !== null) {
+							var color = _this.sheetColors[i] & 0xFFFFFF;
+							color = (color | 0x1000000).toString(16).substring(1);
+							td.style.background = "linear-gradient(#FFFFFF,#" + color + " 200%)";
+							td.style.color = "";
+						}
+					} else {
+						td.className = "spreadsheet_sheet";
+						if (_this.sheetColors && _this.sheetColors[i] !== null) {
+							var color = _this.sheetColors[i] & 0xFFFFFF;
+							var r = (color >> 16) & 0xFF;
+							var g = (color >> 8) & 0xFF;
+							var b = color & 0xFF;
+							color = (color | 0x1000000).toString(16).substring(1);
+							td.style.background = "#" + color;
+							if (r < 128 || g < 128 || b < 128) {
+								td.style.color = "white";
+							} else {
+							td.style.color = "";
+							}
+						}
+					}
+					td._offsetWidth = td.offsetWidth;
+				}
+				_this.moreTd = null;
+				_this.doOnWindowResize({target:window});
+			}
+			if (_this.colorSetting) {
+				if (_this.colorSetting.toolBarColor) {
+					if (_this.elemToolbarBg) {
+						var color;
+						if (_this.colorSetting.toolBarColorT) {
+							color = "rgba(" + _this.colorSetting.toolBarColor + "," + (_this.colorSetting.toolBarColorT / 255 ) +")";
+						} else {
+							color = "rgb(" + _this.colorSetting.toolBarColor + ")"
+						}
+						_this.elemToolbarBg.style.backgroundColor = color;	
+					}
+				}
+				if (_this.colorSetting.toolBarFontColor) {
+					if (_this.elemToolbarTr) {
+						if (_this.elemTdSheetsLabel) {
+							_this.elemTdSheetsLabel.style.color = "rgb(" + _this.colorSetting.toolBarFontColor + ")";
+						}
+						var tools = _this.elemToolbarTr.getElementsByTagName("input");
+						for (var i = 0; i < tools.length; i++) {
+							var tool = tools[i];
+							tool.style.color = "rgb(" + _this.colorSetting.toolBarFontColor + ")";
+						}
+					}
+				}
+				if (_this.elemTdSheets) {
+					var sheets = domutils.getElementsByClassName('spreadsheet_sheet', _this.elemTdSheets);
+					for (var i = 0; i < sheets.length; i++) {
+						var sheet = sheets[i];
+						if (_this.colorSetting.sheetNameColor) {
+							var color = "rgb(" + _this.colorSetting.sheetNameColor + ")";
+							sheet.style.color = color;
+						}
+						if (_this.colorSetting.sheetBackGround) {
+							var background;
+							if (_this.colorSetting.sheetBackGroundT) {
+								background = "rgba(" + _this.colorSetting.sheetBackGround + "," + (_this.colorSetting.sheetBackGroundT / 255 ) +")";
+							} else {
+								background = "rgb(" + _this.colorSetting.sheetBackGround + ")";
+							}
+							sheet.style.backgroundColor = background;
+						}
+					}
+					var sheetMore = domutils.getElementsByClassName('spreadsheet_sheet_more', _this.elemTdSheets)[0];
+					if (sheetMore) {
+						if (_this.colorSetting.sheetNameColor) {
+							var color = "rgb(" + _this.colorSetting.sheetNameColor + ")";
+							sheetMore.style.color = color;
+						}
+						if (_this.colorSetting.sheetBackGround) {
+							var background;
+							if (_this.colorSetting.sheetBackGroundT) {
+								background = "rgba(" + _this.colorSetting.sheetBackGround + "," + (_this.colorSetting.sheetBackGroundT / 255 ) +")";
+							} else {
+								background = "rgb(" + _this.colorSetting.sheetBackGround + ")";
+							}
+							sheetMore.style.backgroundColor = background;
+						}
+					}
+				}
+				if (_this.colorSetting.sheetNameHonorColor) {
+					if (_this.selectedSheetTd) {
+						_this.selectedSheetTd.style.color = "rgb(" + _this.colorSetting.sheetNameHonorColor + ")";
+					}
+				}
+				if (_this.colorSetting.sheetBackGroundHonor) {
+					if (_this.selectedSheetTd) {
+						var backgroundHonor;
+						if (_this.colorSetting.sheetBackGroundHonorT) {
+							backgroundHonor = "rgba(" + _this.colorSetting.sheetBackGroundHonor + "," + (_this.colorSetting.sheetBackGroundHonorT / 255 ) +")";
+						} else {
+							backgroundHonor = "rgb(" + _this.colorSetting.sheetBackGroundHonor + ")";
+						}
+						_this.selectedSheetTd.style.backgroundColor = backgroundHonor;
+					}
+				}
+			}
+		}
+	}, 1000);
+}
+SpreadsheetReport.prototype.addButton = function(spreadsheetReport) {
+    var util = jsloader.resolve("freequery.common.util");
+	if (!util.hasLicense('ReportAudit')) {
+		return;
+	}
+	var _this = this;
+
+	// 添加“数据校验”按钮
+    this.isAddButton = false;
+	var task = _this.getCurrentReportTask(spreadsheetReport);
+	_this.addSummaryButton(spreadsheetReport, task);
+	_this.addVerifyReportDataButton(spreadsheetReport);
+	_this.addCommitReportDataButton(spreadsheetReport);
+	_this.addPassReportDataButton(spreadsheetReport, task);
+	_this.addbackToPreButton(spreadsheetReport, task);
+	_this.addbackToStartButton(spreadsheetReport, task);
+	_this.addPublishReportDataButton(spreadsheetReport, task);
+	_this.addCheckInstanceStateButton(spreadsheetReport, task);
+	_this.addRemarkButton(spreadsheetReport, task);
+	_this.addStateShowLabel(spreadsheetReport);
+	this.isAddButton = true;
+	_this.refreshButtonStatus(spreadsheetReport);
+
+}
+
+SpreadsheetReport.prototype.refreshButtonStatus = function(spreadsheetReport) {
+	if (!this.isAddButton) {
+		return;
+	}
+	if (registry.get("smxMobile")) {
+		this.mobileAdapter.doRefreshButtonStatus();
+	}
+	var _this = this;
+	var task = _this.getCurrentReportTask(spreadsheetReport);
+	this._task = task;
+	_this.setButtonStatus(spreadsheetReport._myCommitBtn, false);
+	_this.setButtonStatus(spreadsheetReport._myVerifyBtn, false);
+	_this.setButtonStatus(spreadsheetReport._myPassBtn, false);
+	_this.setButtonStatus(spreadsheetReport._mySummaryBtn, false);
+	_this.setButtonStatus(spreadsheetReport._myCheckStateBtn, false);
+	_this.setButtonStatus(spreadsheetReport._myPublishBtn, false);
+	_this.setButtonStatus(spreadsheetReport._myRemarkBtn, false);
+	_this.setButtonStatus(spreadsheetReport._myBackToStartBtn, false);
+	_this.setButtonStatus(spreadsheetReport._myBackToPreBtn, false);
+	_this.setButtonStatus(spreadsheetReport.elem_btnExcelImport, false);
+	/*if(spreadsheetReport.elem_btnExcelImport){
+		spreadsheetReport.elem_btnExcelImport.style.display = "none";
+	}*/
+	_this.setButtonStatus(spreadsheetReport.spreadsheetReportWriteBack.elem_btnSave, false);
+	_this.addStateShowLabel(spreadsheetReport);
+	var reportResId = spreadsheetReport.queryId;
+	var ret = util.remoteInvoke("RepositoryService", "getInfoByStartRoalAndSpreadsheetId", [ reportResId ]);
+	var ret2 = util.remoteInvoke("RepositoryService", "getOptByStartRoalAndSpreadsheetId", [ reportResId ]);
+	var instance = spreadsheetReport.spreadsheetReportWriteBack.getInstanceBySpreadsheet(spreadsheetReport);
+	if (ret.result&&!instance) {
+		_this.setButtonStatus(spreadsheetReport.spreadsheetReportWriteBack.elem_btnSave, true);
+	}
+	if(ret2.result&&!instance){
+		var foptStr = ret2.result;
+		var fopt = eval("(" + foptStr+ ")");
+		for ( var j = 0; j < fopt.length; j++) {
+			if(fopt[j] == "import"){
+				_this.setButtonStatus(spreadsheetReport.elem_btnExcelImport, true);	
+			}
+		}
+	}
+	if(instance){
+		_this.setButtonStatus(spreadsheetReport._myCheckStateBtn, true);
+	}
+	if (!task || !task.taskOpt)
+		return;
+	var summaryflg = false;
+	
+	_this.setButtonStatus(spreadsheetReport._myRemarkBtn, true);
+	var opt = eval("(" + task.taskOpt + ")");
+	for ( var i = 0; i < opt.length; i++) {
+		switch (opt[i]) {
+			case "import":
+				_this.setButtonStatus(spreadsheetReport.elem_btnExcelImport, true);		
+				break;
+			case "fill":
+				_this.setButtonStatus(spreadsheetReport.spreadsheetReportWriteBack.elem_btnSave, true);
+				break;
+			case "verify":
+				_this.setButtonStatus(spreadsheetReport._myVerifyBtn, true);
+				break;
+			case "summary":
+				summaryflg = true;
+				_this.setButtonStatus(spreadsheetReport._mySummaryBtn, true);
+				break;
+			case "report":
+				_this.setButtonStatus(spreadsheetReport._myCommitBtn, true);
+				break;
+			case "audit":
+				_this.setButtonStatus(spreadsheetReport._myPassBtn, true);
+				break;
+			case "release":
+				_this.setButtonStatus(spreadsheetReport._myPublishBtn, true);
+				break;
+			case "backToStart":
+				_this.setButtonStatus(spreadsheetReport._myBackToStartBtn, true);
+				break;
+			case "backToPre":
+				_this.setButtonStatus(spreadsheetReport._myBackToPreBtn, true);
+				break;
+		}
+	}
+	if(summaryflg){
+		_this.setButtonStatus(spreadsheetReport._myPublishBtn, false);
+		_this.setButtonStatus(spreadsheetReport._myPassBtn, false);
+		_this.setButtonStatus(spreadsheetReport._myCommitBtn, false);
+	}
+	if (!_this.openByParamValueSetting && _this.visibleSheetNames.length > 1) {
+				_this.elemTdSheets.innerHTML = "";
+				var table = document.createElement("TABLE");
+				_this.sheetsTable = table;
+				_this.addListener(table, "click", _this.doSheetTableClick, _this);
+				var div = document.createElement("DIV");
+				div.className = "spreadsheet_sheets_table";
+				div.appendChild(table);
+				table.style.borderCollapse = "collapse";
+				if (!_this.elemTdSheets) {
+					var tr = _this.elem_outerTable.insertRow(0);
+					_this.elemTdSheets = tr.insertCell(-1);
+					_this.elemTdSheets.align = "right";
+				} else {
+					_this.elemTdSheetsLabel.style.display = "";
+				}
+				_this.elemTdSheets.appendChild(div);
+				var tr = table.insertRow(-1);
+				for (var i = 0; i < _this.visibleSheetNames.length; i++) {
+					var td = tr.insertCell(-1);
+					td._sheetName = _this.visibleSheetNames[i];
+					td.innerText = _this.visibleSheetNames[i];
+					if (_this.sheetNames[_this.currentSheetIndex] == _this.visibleSheetNames[i]) {
+						td.className = "spreadsheet_selected_sheet";
+						_this.selectedSheetTd = td;
+						if (_this.sheetColors && _this.sheetColors[i] !== null) {
+							var color = _this.sheetColors[i] & 0xFFFFFF;
+							color = (color | 0x1000000).toString(16).substring(1);
+							td.style.background = "linear-gradient(#FFFFFF,#" + color + " 200%)";
+							td.style.color = "";
+						}
+					} else {
+						td.className = "spreadsheet_sheet";
+						if (_this.sheetColors && _this.sheetColors[i] !== null) {
+							var color = _this.sheetColors[i] & 0xFFFFFF;
+							var r = (color >> 16) & 0xFF;
+							var g = (color >> 8) & 0xFF;
+							var b = color & 0xFF;
+							color = (color | 0x1000000).toString(16).substring(1);
+							td.style.background = "#" + color;
+							if (r < 128 || g < 128 || b < 128) {
+								td.style.color = "white";
+							} else {
+							td.style.color = "";
+							}
+						}
+					}
+					td._offsetWidth = td.offsetWidth;
+				}
+				_this.moreTd = null;
+				_this.doOnWindowResize({target:window});
+			}
+	if (_this.colorSetting) {
+		if (_this.colorSetting.toolBarColor) {
+			if (_this.elemToolbarBg) {
+				var color;
+				if (_this.colorSetting.toolBarColorT) {
+					color = "rgba(" + _this.colorSetting.toolBarColor + "," + (_this.colorSetting.toolBarColorT / 255 ) +")";
+				} else {
+					color = "rgb(" + _this.colorSetting.toolBarColor + ")"
+				}
+				_this.elemToolbarBg.style.backgroundColor = color;	
+			}
+		}
+		if (_this.colorSetting.toolBarFontColor) {
+			if (_this.elemToolbarTr) {
+				if (_this.elemTdSheetsLabel) {
+					_this.elemTdSheetsLabel.style.color = "rgb(" + _this.colorSetting.toolBarFontColor + ")";
+				}
+				var tools = _this.elemToolbarTr.getElementsByTagName("input");
+				for (var i = 0; i < tools.length; i++) {
+					var tool = tools[i];
+					tool.style.color = "rgb(" + _this.colorSetting.toolBarFontColor + ")";
+				}
+			}
+		}
+		if (_this.elemTdSheets) {
+			var sheets = domutils.getElementsByClassName('spreadsheet_sheet', _this.elemTdSheets);
+			for (var i = 0; i < sheets.length; i++) {
+				var sheet = sheets[i];
+				if (_this.colorSetting.sheetNameColor) {
+					var color = "rgb(" + _this.colorSetting.sheetNameColor + ")";
+					sheet.style.color = color;
+				}
+				if (_this.colorSetting.sheetBackGround) {
+					var background;
+					if (_this.colorSetting.sheetBackGroundT) {
+						background = "rgba(" + _this.colorSetting.sheetBackGround + "," + (_this.colorSetting.sheetBackGroundT / 255 ) +")";
+					} else {
+						background = "rgb(" + _this.colorSetting.sheetBackGround + ")";
+					}
+					sheet.style.backgroundColor = background;
+				}
+			}
+			var sheetMore = domutils.getElementsByClassName('spreadsheet_sheet_more', _this.elemTdSheets)[0];
+			if (sheetMore) {
+				if (_this.colorSetting.sheetNameColor) {
+					var color = "rgb(" + _this.colorSetting.sheetNameColor + ")";
+					sheetMore.style.color = color;
+				}
+				if (_this.colorSetting.sheetBackGround) {
+					var background;
+					if (_this.colorSetting.sheetBackGroundT) {
+						background = "rgba(" + _this.colorSetting.sheetBackGround + "," + (_this.colorSetting.sheetBackGroundT / 255 ) +")";
+					} else {
+						background = "rgb(" + _this.colorSetting.sheetBackGround + ")";
+					}
+					sheetMore.style.backgroundColor = background;
+				}
+			}
+		}
+		if (_this.colorSetting.sheetNameHonorColor) {
+			if (_this.selectedSheetTd) {
+				_this.selectedSheetTd.style.color = "rgb(" + _this.colorSetting.sheetNameHonorColor + ")";
+			}
+		}
+		if (_this.colorSetting.sheetBackGroundHonor) {
+			if (_this.selectedSheetTd) {
+				var backgroundHonor;
+				if (_this.colorSetting.sheetBackGroundHonorT) {
+					backgroundHonor = "rgba(" + _this.colorSetting.sheetBackGroundHonor + "," + (_this.colorSetting.sheetBackGroundHonorT / 255 ) +")";
+				} else {
+					backgroundHonor = "rgb(" + _this.colorSetting.sheetBackGroundHonor + ")";
+				}
+				_this.selectedSheetTd.style.backgroundColor = backgroundHonor;
+			}
+		}
+	}
+}
+
+// 设置按钮状态
+SpreadsheetReport.prototype.setButtonStatus = function(btnObject, btnEnabled) {
+	if (btnObject) {
+		if(btnEnabled){
+			btnObject.style.display = "block";
+		}else{
+			btnObject.style.display = "none";
+		}
+		
+		/*btnObject.disabled = !btnEnabled;
+		var backgroundImage = (btnObject.style.backgroundImage || "").replace("-gray", "");
+		if (!backgroundImage) {
+			return;
+		}
+		var r = backgroundImage.match(/^([^.]+)(\.png[^.]+)$/);
+		btnObject.style.backgroundImage = [ r[1], (btnEnabled ? "" : "-gray"), r[2] ].join("");*/
+	}
+};
+
+SpreadsheetReport.prototype.setParamValueByName = function(name, value, displayValue) {
+	var param = this.paramPanelObj.findParamByName(name);
+	this.setParamValue(param.id, value, displayValue, "");
+}
+
+// 添加汇总按钮
+SpreadsheetReport.prototype.addSummaryButton = function(spreadsheetReport, task, callbackFun) {
+	if (!spreadsheetReport._mySummaryBtn) { // 不要重复添加按钮
+		var refBeforeButton;
+		refBeforeButton = spreadsheetReport.elemPageCtrl;
+
+		var newBtn = this.insertNewButtonBefore(spreadsheetReport, refBeforeButton, "${Summary}",
+				"url(img/button/verify/btnSummary.png)");
+		spreadsheetReport.addListener(newBtn, "click", callbackFun ? callbackFun : function(e) {
+			var taskName = this._task.taskName;
+			this.summary(spreadsheetReport);
+		}, spreadsheetReport);
+		spreadsheetReport._mySummaryBtn = newBtn;
+	}
+};
+
+// 添加备注按钮
+SpreadsheetReport.prototype.addRemarkButton = function(spreadsheetReport, task, callbackFun) {
+	if (!spreadsheetReport._myRemarkBtn) { // 不要重复添加按钮
+		var refBeforeButton;
+		refBeforeButton = spreadsheetReport.elemPageCtrl;
+
+		var newBtn = this.insertNewButtonBefore(spreadsheetReport, refBeforeButton, "${WorkflowRemark}",
+				"url(img/button/verify/btnNote.png)");
+		spreadsheetReport.addListener(newBtn, "click", callbackFun ? callbackFun : function(e) {
+			var task = this.getCurrentReportTask(spreadsheetReport);
+			var data = [ window, task ];
+			var dialogConfig = {
+				title : '${WorkflowRemark}',
+				fullName : 'smartbi.task.TaskRemarkDialog'
+			};
+			if (registry.get('smxMobile')) {
+				dialogConfig.size = DialogFactory.getInstance().size.FULL;
+			} else {
+				dialogConfig.size = DialogFactory.getInstance().size.MIDDLE;
+			}
+			DialogFactory.getInstance().showDialog(dialogConfig, data);
+		}, spreadsheetReport);
+		spreadsheetReport._myRemarkBtn = newBtn;
+	}
+};
+
+// 添加查看流程日志按钮
+SpreadsheetReport.prototype.addCheckInstanceStateButton = function(spreadsheetReport, task, callbackFun) {
+	if (!spreadsheetReport._myCheckStateBtn) { // 不要重复添加按钮
+		var refBeforeButton;
+		if (spreadsheetReport.spreadsheetReportWriteBack) {
+			refBeforeButton = spreadsheetReport.spreadsheetReportWriteBack.elem_btnAppendRow;
+		} else {
+			refBeforeButton = spreadsheetReport.elem_btnPrint;
+		}
+
+		var newBtn = this.insertNewButtonBefore(spreadsheetReport, refBeforeButton, "${WorkflowCheckLog}",
+				"url(img/button/verify/btnViewState.png)");
+		spreadsheetReport.addListener(newBtn, "click", callbackFun ? callbackFun : function(e) {
+			var reportResId = spreadsheetReport.queryId;
+			var parmas = this.getWorkflowParams(reportResId, spreadsheetReport);
+			var isBySheetRet = util.remoteInvoke('RepositoryService', 'isBySheet', [ this.queryId]);
+			var isBySheet = isBySheetRet.result;
+			var sheetName = this.sheetNames[this.currentSheetIndex];	
+			var resId = isBySheet?reportResId+"_"+sheetName:reportResId;
+			var ret = util.remoteInvoke("RuntimeService", "getInsBySpreadSheetAndParam", [ resId,
+					parmas.mechanismParmas, parmas.otherParmas ]);
+			var data = [ window, ret.result ];
+			var dialogConfig = {
+				title : '${TaskLog}',
+				fullName : 'smartbi.task.TaskStateDialog'
+			};
+			if (registry.get('smxMobile')) {
+				dialogConfig.size = DialogFactory.getInstance().size.FULL;
+			} else {
+				dialogConfig.size = DialogFactory.getInstance().size.MIDDLE;
+			}
+			DialogFactory.getInstance().showDialog(dialogConfig, data);
+		}, spreadsheetReport);
+		spreadsheetReport._myCheckStateBtn = newBtn;
+	}
+};
+
+// 添加查看实例状态按钮
+SpreadsheetReport.prototype.addGetInstanceStateButton = function(spreadsheetReport, task, callbackFun) {
+	if (!spreadsheetReport._myGetStateBtn) { // 不要重复添加按钮
+		var refBeforeButton;
+		if (spreadsheetReport.spreadsheetReportWriteBack) {
+			refBeforeButton = spreadsheetReport.spreadsheetReportWriteBack.elem_btnAppendRow;
+		} else {
+			refBeforeButton = spreadsheetReport.elem_btnPrint;
+		}
+
+		var newBtn = this.insertNewButtonBefore(spreadsheetReport, refBeforeButton, "${InstanceState}",
+			"url(img/button/verify/btnViewWorkflow.png)");
+		spreadsheetReport.addListener(newBtn, "click", callbackFun ? callbackFun : function(e) {
+			var reportResId = spreadsheetReport.queryId;
+			var parmas = this.getWorkflowParams(reportResId, spreadsheetReport);
+			var isBySheetRet = util.remoteInvoke('RepositoryService', 'isBySheet', [ this.queryId ]);
+			var isBySheet = isBySheetRet.result;
+			var sheetName = this.sheetNames[this.currentSheetIndex];
+			var resId = isBySheet ? reportResId + "_" + sheetName : reportResId;
+			var ret = util.remoteInvoke("RuntimeService", "getInsBySpreadSheetAndParam", [ resId,
+				parmas.mechanismParmas, parmas.otherParmas ]);
+			var data = [ window, ret.result ];
+			var dialogConfig = {
+				title: '${InstanceState}',
+				fullName: 'smartbi.workflow.InstanceStateDialog'
+			};
+			if (registry.get('smxMobile')) {
+				dialogConfig.size = DialogFactory.getInstance().size.FULL;
+			} else {
+				dialogConfig.size = DialogFactory.getInstance().size.MIDDLE;
+			}
+			DialogFactory.getInstance().showDialog(dialogConfig, data);
+		}, spreadsheetReport);
+		spreadsheetReport._myGetStateBtn = newBtn;
+	}
+};
+
+// 添加上报按钮
+SpreadsheetReport.prototype.addCommitReportDataButton = function(spreadsheetReport, callbackFun) {
+	if (!spreadsheetReport._myCommitBtn) { // 不要重复添加按钮
+		var refBeforeButton;
+		if (spreadsheetReport.spreadsheetReportWriteBack) {
+			refBeforeButton = spreadsheetReport.spreadsheetReportWriteBack.elem_btnAppendRow;
+		} else {
+			refBeforeButton = spreadsheetReport.elem_btnPrint;
+		}
+		var newBtn = this.insertNewButtonBefore(spreadsheetReport, refBeforeButton, "${WorkflowCommitReport}",
+				"url(img/button/verify/btnCommit.png)");
+		spreadsheetReport.addListener(newBtn, "click", callbackFun ? callbackFun : function(e) {
+			var errorList = this.doVerify();
+			if (errorList.length > 0) {
+				var text = "${RulesNotValidated}:<br>" + errorList.join("<br>");
+				alert(text);
+				return;
+			} 
+			// “提交”按钮回调函数
+			var taskName = this._task.taskName;
+			MacroService.fire(this, "WORKFLOW", "beforeCommit", [ this, taskName ]);
+
+			var task = this.getCurrentReportTask(spreadsheetReport);
+			this.auditPass(spreadsheetReport, task);
+			var ret = util.remoteInvoke("TaskService", "addOperationLog", [ task.taskId, "${WorkflowCommitReport}" ]);
+			alert("${TaskComite}！");
+
+			MacroService.fire(this, "WORKFLOW", "afterCommit", [ this,taskName ]);
+		}, spreadsheetReport);
+		spreadsheetReport._myCommitBtn = newBtn;
+	}
+};
+
+// 添加实例展示状态
+SpreadsheetReport.prototype.addStateShowLabel = function(spreadsheetReport, callbackFun) {
+	var reportResId = spreadsheetReport.queryId;
+	var parmas = this.getWorkflowParams(reportResId, spreadsheetReport);
+	var isBySheetRet = util.remoteInvoke('RepositoryService', 'isBySheet', [ this.queryId]);
+	var isBySheet = isBySheetRet.result;
+	var sheetName = this.sheetNames[this.currentSheetIndex];	
+	var resId = isBySheet?reportResId+"_"+sheetName:reportResId;
+	var ret1 = util.remoteInvoke("RuntimeService", "getInsBySpreadSheetAndParam", [ resId,
+			parmas.mechanismParmas, parmas.otherParmas ]);
+	var ins = ret1.result;
+	var currentAct = "";
+	if(!ins || !ins.instanceId){
+		if(spreadsheetReport._myStateShow){
+			spreadsheetReport.removeListener(spreadsheetReport._myStateShow, "click");
+			var div = spreadsheetReport._myStateShow.children[0]
+			div.innerText = currentAct;
+			var width = div.innerText.length * 14+10;
+			div.style.width = width+"px";
+		}
+		
+		return;
+	}	
+	var ret2 = util.remoteInvoke("RuntimeService", "getInstanceActivitsById", [ins.instanceId]);	
+		if(ret2&&ret2.result){
+			var list  = ret2.result;
+			for(var i=0;i < list.length; i++){
+				if(list[i].desc == "current"){
+					currentAct = list[i].name;
+				}
+			}
+		}
+	if (!spreadsheetReport._myStateShow) { // 不要重复添加按钮		
+		var div = document.createElement("div");
+		div.innerText = currentAct;
+		div.style.backgroundColor = "#6fa8dc";
+		div.style.textAlign = "center";
+		div.style.color = "#FFFFFF";	
+		div.style.borderRadius = "8px";
+		var width = div.innerText.length * 14+10;
+		div.style.width = width+"px";
+		div.style.backgroundPosition = "left center";
+		var newTd = document.createElement("TD");
+		newTd.noWrap = true;
+		newTd.appendChild(div);
+		var td = spreadsheetReport.elemPageCtrl;
+		td.parentNode.insertBefore(newTd, td);
+		spreadsheetReport._myStateShow = newTd;	
+		
+	}else{
+		var div = spreadsheetReport._myStateShow.children[0]
+		div.innerText = currentAct;
+		var width = div.innerText.length * 14+10;
+		div.style.width = width+"px";
+		//spreadsheetReport._myStateShow = currentAct;
+	}
+	spreadsheetReport.removeListener(spreadsheetReport._myStateShow, "click");
+	spreadsheetReport.addListener(spreadsheetReport._myStateShow, "click", callbackFun ? callbackFun : function(e) {
+				var data = [ window, ret2.result ];
+				var dialogConfig = {
+					title : '${WorkflowState}',
+					size : DialogFactory.getInstance().size.MIDDLE,
+					fullName : 'smartbi.workflow.InstanceStateDialog'
+				};
+				DialogFactory.getInstance().showDialog(dialogConfig, data);
+			}, spreadsheetReport);	
+	
+};
+// 添加审核通过按钮
+SpreadsheetReport.prototype.addPassReportDataButton = function(spreadsheetReport, task, callbackFun) {
+	var task = task;
+	if (!spreadsheetReport._myPassBtn) { // 不要重复添加按钮
+		var refBeforeButton;
+		if (spreadsheetReport.spreadsheetReportWriteBack) {
+			refBeforeButton = spreadsheetReport.spreadsheetReportWriteBack.elem_btnAppendRow;
+		} else {
+			refBeforeButton = spreadsheetReport.elem_btnPrint;
+		}
+		var newBtn = this.insertNewButtonBefore(spreadsheetReport, refBeforeButton, "${AuditPass}",
+				"url(img/button/verify/btnPass.png)");
+		spreadsheetReport.addListener(newBtn, "click", callbackFun ? callbackFun : function(e) {
+			// “审核通过”按钮回调函数
+			var errorList = this.doVerify();
+			if (errorList.length > 0) {
+				var text = "${RulesNotValidated}:<br>" + errorList.join("<br>");
+				alert(text);
+				return;
+			} 
+			var taskName = this._task.taskName;
+			MacroService.fire(this, "WORKFLOW", "beforeAudit", [ this, taskName ]);
+		
+			var task = this.getCurrentReportTask(spreadsheetReport);
+			var ret = util.remoteInvoke("TaskService", "addOperationLog", [ task.taskId, "${AuditPass}" ]);
+			this.auditPass(spreadsheetReport, task);
+			
+			this.refreshButtonStatus(spreadsheetReport);
+			alert("${AuditPass}!");
+
+			MacroService.fire(this, "WORKFLOW", "afterAudit", [ this, taskName ]);
+		}, spreadsheetReport);
+		spreadsheetReport._myPassBtn = newBtn;
+	}
+};
+
+// 添加回退到前一步按钮
+SpreadsheetReport.prototype.addbackToPreButton = function(spreadsheetReport, task, callbackFun) {
+	var task = task;
+	if (!spreadsheetReport._myBackToPreBtn) { // 不要重复添加按钮
+		var refBeforeButton;
+		if (spreadsheetReport.spreadsheetReportWriteBack) {
+			refBeforeButton = spreadsheetReport.spreadsheetReportWriteBack.elem_btnAppendRow;
+		} else {
+			refBeforeButton = spreadsheetReport.elem_btnPrint;
+		}
+		var newBtn = this.insertNewButtonBefore(spreadsheetReport, refBeforeButton, "${Fallback}",
+			"url(img/button/verify/btnRollback.png)");
+		spreadsheetReport.addListener(newBtn, "click", callbackFun ? callbackFun : function(e) {
+			var task = this.getCurrentReportTask(spreadsheetReport);
+			var data = [ window, task ];
+			var dialogConfig = {
+				title: '${WorkflowRemark}',
+				fullName: 'smartbi.task.TaskRemarkDialog'
+			};
+			if (registry.get('smxMobile')) {
+				dialogConfig.size = DialogFactory.getInstance().size.FULL;
+			} else {
+				dialogConfig.size = DialogFactory.getInstance().size.MIDDLE;
+			}
+			DialogFactory.getInstance().showDialog(dialogConfig, data, function(flag) {
+				// “审核不通过驳回”按钮回调函数
+				if (flag) {
+					var taskName = this._task.taskName;
+					MacroService.fire(this, "WORKFLOW", "beforeBackToPre", [ this, taskName ]);
+					this.backToPre(spreadsheetReport, task);
+					this.refreshButtonStatus(spreadsheetReport);
+					alert("${Fallback}");
+					MacroService.fire(this, "WORKFLOW", "afterBackToPre", [ this, taskName ]);
+				}
+			}, this);
+
+		}, spreadsheetReport);
+		spreadsheetReport._myBackToPreBtn = newBtn;
+	}
+};
+
+// 添加回退到开始按钮
+SpreadsheetReport.prototype.addbackToStartButton = function(spreadsheetReport, task, callbackFun) {
+	var task = task;
+	if (!spreadsheetReport._myBackToStartBtn) { // 不要重复添加按钮
+		var refBeforeButton;
+		if (spreadsheetReport.spreadsheetReportWriteBack) {
+			refBeforeButton = spreadsheetReport.spreadsheetReportWriteBack.elem_btnAppendRow;
+		} else {
+			refBeforeButton = spreadsheetReport.elem_btnPrint;
+		}
+		var newBtn = this.insertNewButtonBefore(spreadsheetReport, refBeforeButton, "${FallbackToBegin}",
+			"url(img/button/verify/btnBackToFirst.png)");
+		spreadsheetReport.addListener(newBtn, "click", callbackFun ? callbackFun : function(e) {
+			var task = this.getCurrentReportTask(spreadsheetReport);
+			var data = [ window, task ];
+			var dialogConfig = {
+				title: '${WorkflowRemark}',
+				fullName: 'smartbi.task.TaskRemarkDialog'
+			};
+			if (registry.get('smxMobile')) {
+				dialogConfig.size = DialogFactory.getInstance().size.FULL;
+			} else {
+				dialogConfig.size = DialogFactory.getInstance().size.MIDDLE;
+			}
+			DialogFactory.getInstance().showDialog(dialogConfig, data, function(flag) {
+				if (flag) {
+					var taskName = this._task.taskName;
+					MacroService.fire(this, "WORKFLOW", "beforeBackToStart", [ this, taskName ]);
+					var task = this.getCurrentReportTask(spreadsheetReport);
+					// “审核不通过驳回”按钮回调函数
+					this.backToStart(spreadsheetReport, task);
+					this.refreshButtonStatus(spreadsheetReport);
+					alert("${FallbackToBegin}");
+
+					MacroService.fire(this, "WORKFLOW", "afterBackToStart", [ this, taskName ]);
+				}
+			}, this);
+
+		}, spreadsheetReport);
+		spreadsheetReport._myBackToStartBtn = newBtn;
+	}
+};
+
+// 添加报表发布按钮
+SpreadsheetReport.prototype.addPublishReportDataButton = function(spreadsheetReport, task, callbackFun) {
+	if (!spreadsheetReport._myPublishBtn) { // 不要重复添加按钮
+		var refBeforeButton;
+		if (spreadsheetReport.spreadsheetReportWriteBack) {
+			refBeforeButton = spreadsheetReport.spreadsheetReportWriteBack.elem_btnAppendRow;
+		}
+
+		var newBtn = this.insertNewButtonBefore(spreadsheetReport, refBeforeButton, "${Release}",
+				"url(img/button/verify/btnPublish.png)");
+		spreadsheetReport.addListener(newBtn, "click", callbackFun ? callbackFun : function(e) {
+			var taskName = this._task.taskName;
+			MacroService.fire(this, "WORKFLOW", "beforeRelease", [ this,taskName ]);
+			var task = this.getCurrentReportTask(spreadsheetReport);
+			// “发布”按钮回调函数
+			this.auditPass(spreadsheetReport, task);
+			var ret = util.remoteInvoke("TaskService", "addOperationLog", [ task.taskId, "${Release}" ]);
+			alert("${HasRelease}!");
+
+			MacroService.fire(this, "WORKFLOW", "afterRelease", [ this, taskName ]);
+		}, spreadsheetReport);
+		spreadsheetReport._myPublishBtn = newBtn;
+	}
+};
+
+SpreadsheetReport.prototype.doVerify = function(){
+	var errorList = [];
+	var defineStr = this.info.workflowDefine;
+	var defineObj = lang.parseJSON(defineStr);
+	if (defineObj && defineObj.processVerifySheet) {
+		var ps = [];
+		if (this.params && this.params.length > 0) {
+			ps = this.buildParamsInfo(true);
+			if (!ps)
+				return;
+		}
+		
+		//重置所有已经设置了颜色的单元格
+		var rowCount = this.getRowCount();
+		var colCount = this.getColumnCount();
+		for (var r = 0; r < rowCount; r++) {
+			for (c = 0; c < colCount; c++) {
+				var cell = this.getCell(r, c);
+				if (cell && cell.__verify) {
+					if (cell.__backgroundColor) {
+						cell.style.backgroundColor = cell.__backgroundColor;
+						delete cell.__backgroundColor;
+					} else if (cell.style.backgroundColor){
+						cell.style.backgroundColor = "";
+					}
+					delete cell.__verify;
+				}
+			}
+		}
+		var ret = util.remoteInvokeEx("SpreadsheetReportModule", "calculateFormulas", [ this.clientId,
+				defineObj.processVerifySheet, this.currentSheetIndex || 0, this.pageIndex || 0, lang.toJSONString(ps),
+				this.elemWriteBackData.value,
+				this.userOperations ? lang.toJSONString(this.userOperations) : null,
+				this.elemSheetFrame.contentWindow.charts ? true : false ]);
+		
+		if (ret && ret.succeeded && ret.result) {
+			for ( var keyStr in ret.result) {
+				var result = ret.result[keyStr];
+				console.log(keyStr + "  " + result);
+				if (!result || "false" == result) {
+					var expList = this.splitExp(keyStr);
+					for ( var i = 0; i < expList.length; i++) {
+						var idx = expList[i].indexOf("!");
+						if (idx != -1) {
+							hasSheetName = true;
+							var sheetStr = expList[i].substring(0, idx);
+							if (this.sheetNames[this.currentSheetIndex] == sheetStr) {
+								isCurrentSheet = true;
+								var cellStr = expList[i].substring(idx + 1);
+								var tempCellPosition = util.parseCellPosition(cellStr);
+								var cell = this.getCell(tempCellPosition.row, tempCellPosition.col);
+								if (cell) {
+									cell.__verify = {};
+									if (cell.style.backgroundColor) {
+										cell.__backgroundColor = cell.style.backgroundColor;
+									}
+									cell.style.backgroundColor = "red";
+								}
+							}
+						}
+					}
+					var text = keyStr;
+					text = text.replace(/</g, "&lt;");
+					text = text.replace(/>/g, "&gt");
+					errorList.push(text);
+				}
+			}
+		}
+	}
+	return errorList;
+}
+
+// 添加校验按钮
+SpreadsheetReport.prototype.addVerifyReportDataButton = function(spreadsheetReport, callbackFun) {
+	if (!spreadsheetReport._myVerifyBtn) { // 不要重复添加按钮
+		var refBeforeButton;
+		if (spreadsheetReport.spreadsheetReportWriteBack) {
+			refBeforeButton = spreadsheetReport.spreadsheetReportWriteBack.elem_btnAppendRow;
+		} else {
+			refBeforeButton = spreadsheetReport.elem_btnPrint;
+		}
+		var newBtn = this.insertNewButtonBefore(spreadsheetReport, refBeforeButton, "${Validation}",
+				"url(img/button/verify/btnVerify.png)");
+		spreadsheetReport.addListener(newBtn, "click", callbackFun ? callbackFun : function(e) {
+			// “校验”按钮回调函数
+			var taskName =  this._task.taskName
+			MacroService.fire(this, "WORKFLOW", "beforeVerify", [ this, taskName]);
+			this.doingVerify = true;
+			var errorList = this.doVerify();
+			if (errorList.length > 0) {
+				var text = "${RulesNotValidated}:<br>" + errorList.join("<br>");
+				alert(text);
+			} else {
+				alert("${CheckPass}！");
+			}
+			
+			MacroService.fire(this, "WORKFLOW", "afterVerify", [ this, taskName ]);
+		}, spreadsheetReport);
+		spreadsheetReport._myVerifyBtn = newBtn;
+	}
+};
+
+SpreadsheetReport.prototype.splitExp = function(exp) {
+	var separator = [ '(', ')', '+', '-', '*', '/', '%', '>=', '<=', '=', '>', '<', ',' ];
+	var rtn = [];
+	var flag = false;
+	for ( var i = 0; i < separator.length; i++) {
+		var idx = exp.indexOf(separator[i]);
+		if (idx != -1) {
+			var part1 = exp.substring(0, idx);
+			var part2 = exp.substring(idx + separator[i].length);
+			var part1List = this.splitExp(part1);
+			var part2List = this.splitExp(part2);
+			for ( var j = 0; j < part1List.length; j++) {
+				rtn[rtn.length] = part1List[j];
+			}
+			for ( var j = 0; j < part2List.length; j++) {
+				rtn[rtn.length] = part2List[j];
+			}
+			flag = true;
+			break;
+		}
+	}
+	if (!flag) {
+		return [ exp ];
+	}
+	return rtn;
+}
+
+// 在指定的按钮之前插入一新按钮
+SpreadsheetReport.prototype.insertNewButtonBefore = function(spreadsheetReport, refBeforeButton, title, backgroundImage) {
+	var input = document.createElement("INPUT");
+	input.type = "button";
+	input.className = "queryview-toolbar-button";
+	input.value = "";
+	input.title = title || "${WorkflowButtonTitile}";
+	// input.accessKey = "N";
+	input.style.backgroundImage = backgroundImage; // "url(img/button/verify/btnCommit.png)";
+	input.style.backgroundRepeat = "no-repeat"
+	input.style.backgroundPosition = "left center";
+	var newTd = document.createElement("TD");
+	newTd.noWrap = true;
+	newTd.appendChild(input);
+	// var td = (refBeforeButton) ? refBeforeButton.parentNode:
+	// spreadsheetReport.elemToolbarLastTd;
+	var td = spreadsheetReport.elemPageCtrl;
+	td.parentNode.insertBefore(newTd, td);
+	return input;
+};
+
+// 获取报表当前的审核状态
+SpreadsheetReport.prototype.getCurrentReportTask = function(spreadsheetReport) {
+	var reportResId = spreadsheetReport.queryId;
+	var UserService = imports("bof.usermanager.UserService").getInstance();
+	var user = UserService.getCurrentUser();
+	var userId = UserService.getCurrentUser().id;
+	var util = jsloader.resolve("freequery.common.util");
+	var parmas = this.getWorkflowParams(reportResId, spreadsheetReport);
+	var isBySheetRet = util.remoteInvoke('RepositoryService', 'isBySheet', [ this.queryId]);
+	var isBySheet = isBySheetRet.result;
+	var sheetName = this.sheetNames[this.currentSheetIndex];	
+	var resId = isBySheet?reportResId+"_"+sheetName:reportResId;
+	var ret = util.remoteInvoke("TaskService", "getTaskByRes", [ "unfinished", resId, parmas.mechanismParmas,
+			parmas.otherParmas ]);
+	if (ret.succeeded) {
+		return ret.result;
+	}
+}
+
+// 获取报表当前任务的接收人
+SpreadsheetReport.prototype.getCurrentTaskReceivor = function(spreadsheetReport) {
+	var reportResId = spreadsheetReport.queryId;
+	var util = jsloader.resolve("freequery.common.util");
+	var parmas = this.getWorkflowParams(reportResId, spreadsheetReport);
+	var isBySheetRet = util.remoteInvoke('RepositoryService', 'isBySheet', [ this.queryId]);
+	var isBySheet = isBySheetRet.result;
+	var sheetName = this.sheetNames[this.currentSheetIndex];	
+	var resId = isBySheet?reportResId+"_"+sheetName:reportResId;
+	var ret = util.remoteInvoke("TaskService", "getTaskUserIdsByRes", [ "unfinished", resId, parmas.mechanismParmas,
+			parmas.otherParmas ]);
+	if (ret.succeeded) {
+		return ret.result;
+	}
+}
+
+// 获取第一个节点相关信息
+SpreadsheetReport.prototype.getFristActivity = function(spreadsheetReport) {
+	var reportResId = spreadsheetReport.queryId;
+	var UserService = imports("bof.usermanager.UserService").getInstance();
+	var user = UserService.getCurrentUser();
+	var userId = UserService.getCurrentUser().id;
+	var util = jsloader.resolve("freequery.common.util");
+	var parmas = this.getWorkflowParams(reportResId, spreadsheetReport);
+	var ret = util.remoteInvoke("RepositoryService", "getFristActivityBySpreedSheetId", [ reportResId ]);
+	if (ret.succeeded) {
+		return ret.result;
+	}
+}
+
+SpreadsheetReport.prototype.getWorkflowParams = function(reportResId, spreadsheetReport) {
+	var ret = util.remoteInvoke("RepositoryService", "getResourceDefineBySpreadsheetId", [ reportResId ]);
+	var resDefine = ret.result;
+
+	var sparmas = spreadsheetReport.params;
+	var mechanismParamNames = resDefine.mechanismParameter.split(","); // 字符分割
+	var otherParamNames = resDefine.otherParameters.split(","); // 字符分割
+	var mechanismParmas = new Array();
+	var otherParmas = new Array();
+	for ( var j = 0; j < sparmas.length; j++) {
+		for ( var i = 0; i < mechanismParamNames.length; i++) {
+			if (sparmas[j].name == mechanismParamNames[i]) {
+				var value = spreadsheetReport.getParameterValue(sparmas[j].name);
+				var displayValue = spreadsheetReport.getParameterDisplayValue(sparmas[j].name);
+				mechanismParmas.push({
+					name : sparmas[j].name,
+					value : value,
+					displayValue : displayValue
+				});
+			}
+		}
+		for ( var i = 0; i < otherParamNames.length; i++) {
+			if (sparmas[j].name == otherParamNames[i]) {
+				var value = spreadsheetReport.getParameterValue(sparmas[j].name);
+				var displayValue = spreadsheetReport.getParameterDisplayValue(sparmas[j].name);
+				otherParmas.push({
+					name : sparmas[j].name,
+					value : value,
+					displayValue : displayValue
+				});
+			}
+		}
+	}
+
+	var mechanismParmasStr = JSON.stringify(mechanismParmas);
+	var otherParmasStr = JSON.stringify(otherParmas);
+	return {
+		res : resDefine,
+		mechanismParmas : mechanismParmasStr,
+		otherParmas : otherParmasStr
+	};
+}
+
+// 启动实例
+SpreadsheetReport.prototype.startInstanceById = function(spreadsheetReport) {
+	var reportResId = spreadsheetReport.queryId;
+	var reportVersion = reportVersion || "1";
+	var UserService = imports("bof.usermanager.UserService").getInstance();
+	var userId = UserService.getCurrentUser().id;
+	var util = jsloader.resolve("freequery.common.util");
+	var parmas = this.getWorkflowParams(reportResId, spreadsheetReport);
+	var sheetName = this.sheetNames[this.currentSheetIndex];	
+	var resId = this.isBySheet?reportResId+"_"+sheetName:reportResId;
+	var ret = util.remoteInvoke("RuntimeService", "startInstanceById", [parmas.res.workflowId, resId,
+			parmas.mechanismParmas, parmas.otherParmas, userId ]);
+	this.refreshButtonStatus(spreadsheetReport);
+	if (!ret.succeeded) {
+		var modalWindow = jsloader.resolve("freequery.common.modalWindow");
+		modalWindow.showServerError(ret);
+	}
+	var bannerView = registry.get("bannerView");
+	if(bannerView){
+		bannerView.addNotice();
+	}
+	// 刷新，更新按钮状态
+	spreadsheetReport.doRefresh();
+}
+
+// 汇总
+SpreadsheetReport.prototype.summary = function(spreadsheetReport) {
+	var reportResId = spreadsheetReport.queryId;
+	var reportVersion = reportVersion || "1";
+	var UserService = imports("bof.usermanager.UserService").getInstance();
+	var userId = UserService.getCurrentUser().id;
+	var parmas = this.getWorkflowParams(reportResId, spreadsheetReport);
+	var mechanismParmas = eval("(" + parmas.mechanismParmas + ")");
+	var util = jsloader.resolve("freequery.common.util");
+	var task = this.getCurrentReportTask(this);
+	var ret = util.remoteInvoke("RuntimeService", "gatherInstance", [task.instanceId,mechanismParmas[0].value ]);
+	var data = [ window, ret.result ];
+	var dialogConfig = {
+		title : '${SummaryState}',
+		size : DialogFactory.getInstance().size.MIDDLE,
+		fullName : 'smartbi.task.SummaryStateDialog'
+	};
+	DialogFactory.getInstance().showDialog(dialogConfig, data, function(flag) {
+				// 如果全部完成，审核按钮可用
+				if (flag) {
+					var taskName = this._task.taskName;
+					MacroService.fire(this, "WORKFLOW", "beforeSummary", [ this, taskName ]);		
+					var task = this.getCurrentReportTask(spreadsheetReport);
+					var ret = util.remoteInvoke("TaskService", "addOperationLog", [ task.taskId, "${Summary}" ]);		
+					var opt = eval("(" + task.taskOpt + ")");
+					for ( var i = 0; i < opt.length; i++) {
+						switch (opt[i]) {				
+							case "report":
+								this.setButtonStatus(spreadsheetReport._myCommitBtn, true);
+								break;
+							case "audit":
+								this.setButtonStatus(spreadsheetReport._myPassBtn, true);
+								break;
+							case "release":
+								this.setButtonStatus(spreadsheetReport._myPublishBtn, true);
+								break;							
+						}
+					}		
+					MacroService.fire(this, "WORKFLOW", "afterSummary", [ this, taskName ]);
+				}
+			}, this);
+
+	if (!ret.succeeded) {
+		var modalWindow = jsloader.resolve("freequery.common.modalWindow");
+		modalWindow.showServerError(ret);
+	}
+	// 刷新，更新按钮状态
+	this.refreshButtonStatus(spreadsheetReport);
+	spreadsheetReport.doRefresh();
+}
+
+// 审核通过
+SpreadsheetReport.prototype.auditPass = function(spreadsheetReport, _task) {
+	var reportResId = spreadsheetReport.queryId;
+	var reportVersion = reportVersion || "1";
+	var UserService = imports("bof.usermanager.UserService").getInstance();
+	var userId = UserService.getCurrentUser().id;
+	var task = this.getCurrentReportTask(spreadsheetReport);
+	var util = jsloader.resolve("freequery.common.util");
+	var ret = util.remoteInvoke("TaskService", "auditPass", [ task.taskId, userId ]);
+	if (!ret.succeeded) {
+		var modalWindow = jsloader.resolve("freequery.common.modalWindow");
+		modalWindow.showServerError(ret);
+		return false;
+	}
+	
+	// 刷新，更新按钮状态
+	this.refreshButtonStatus(spreadsheetReport);
+	var bannerView = registry.get("bannerView");
+	if(bannerView){
+		bannerView.addNotice();
+	}
+	spreadsheetReport.doRefresh();
+}
+
+// 回退到上一环节
+SpreadsheetReport.prototype.backToPre = function(spreadsheetReport, task) {
+	var reportResId = spreadsheetReport.queryId;
+	var reportVersion = reportVersion || "1";
+	var UserService = imports("bof.usermanager.UserService").getInstance();
+	var userId = UserService.getCurrentUser().id;
+
+	var util = jsloader.resolve("freequery.common.util");
+	var ret = util.remoteInvoke("TaskService", "backToPre", [ task.taskId, userId ]);
+	var ret = util.remoteInvoke("TaskService", "addOperationLog", [ task.taskId, "${Fallback}" ]);
+	if (!ret.succeeded) {
+		var modalWindow = jsloader.resolve("freequery.common.modalWindow");
+		modalWindow.showServerError(ret);
+	}
+	var bannerView = registry.get("bannerView");
+	if(bannerView){
+		bannerView.addNotice();
+	}
+	// 刷新，更新按钮状态
+	spreadsheetReport.doRefresh();
+}
+
+// 回退到开始
+SpreadsheetReport.prototype.backToStart = function(spreadsheetReport, task) {
+	var reportResId = spreadsheetReport.queryId;
+	var reportVersion = reportVersion || "1";
+	var UserService = imports("bof.usermanager.UserService").getInstance();
+	var userId = UserService.getCurrentUser().id;
+	var util = jsloader.resolve("freequery.common.util");
+	var ret = util.remoteInvoke("TaskService", "addOperationLog", [ task.taskId, "${FallbackToBegin}" ]);
+	var ret = util.remoteInvoke("TaskService", "backToStart", [ task.taskId, userId ]);
+
+	if (!ret.succeeded) {
+		var modalWindow = jsloader.resolve("freequery.common.modalWindow");
+		modalWindow.showServerError(ret);
+	}
+	var bannerView = registry.get("bannerView");
+	if(bannerView){
+		bannerView.addNotice();
+	}
+
+	// 刷新，更新按钮状态
+	spreadsheetReport.doRefresh();
+}
+
+// 系统审核 
+SpreadsheetReport.prototype.systemAuditPass = function(spreadsheetReport) {
+	if (!spreadsheetReport || !spreadsheetReport._task) {
+		return;
+	}
+	var task = spreadsheetReport._task;
+    MacroService.fire(spreadsheetReport, "WORKFLOW", "beforeAudit", [spreadsheetReport, task.taskName]);
+    var util = jsloader.resolve("freequery.common.util");
+    var ret = util.remoteInvoke("TaskService", "auditPass", [task.taskId, "system"]);
+    if (!ret.succeeded) {
+        var modalWindow = jsloader.resolve("freequery.common.modalWindow");
+        modalWindow.showServerError(ret);
+        return;
+    }
+    // 刷新，更新按钮状态
+    var bannerView = registry.get("bannerView");
+    if (bannerView) {
+        bannerView.addNotice();
+    }
+    spreadsheetReport.refreshButtonStatus(spreadsheetReport);
+    spreadsheetReport.doRefresh();
+    MacroService.fire(spreadsheetReport, "WORKFLOW", "afterAudit", [spreadsheetReport, task.taskName]);
+}
+    

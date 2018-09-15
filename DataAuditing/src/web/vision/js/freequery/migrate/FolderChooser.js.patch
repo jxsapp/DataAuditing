@@ -1,0 +1,20 @@
+FolderChooser.prototype.flow_setFiltersType  = FolderChooser.prototype.setFiltersType;
+
+FolderChooser.prototype.setFiltersType  = function(node) {
+	this.flow_setFiltersType(node);
+	var  hasProcessBinding = false;
+	if (node._type == "SPREADSHEET_REPORT") {
+		var ret = util.remoteInvokeEx("RepositoryService", "getInfoBySpreadsheetId", [ node._id ]);
+			if (ret && ret.succeeded && ret.result) {
+				hasProcessBinding = true;
+			}
+	}
+	if(hasProcessBinding){
+		this.choosableTypes = 'DEFAULT_TREENODE'.split(','); 
+		return;
+	}	
+    
+	if(node._type == "WORKFLOW"){
+		this.choosableTypes = 'DEFAULT_TREENODE'.split(','); 
+	}
+}

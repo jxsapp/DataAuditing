@@ -1,0 +1,31 @@
+SuperviseTreePopupMenuHandler.prototype.flow_pasteNode = SuperviseTreePopupMenuHandler.prototype.pasteNode;
+
+SuperviseTreePopupMenuHandler.prototype.pasteNode = function(node) {
+	var copyedNode = node.tree.copyedNode;
+	var  flg = false;
+	var info_ret = util.remoteInvokeEx("RepositoryService", "getInfo", [ copyedNode._name ]);
+	if (info_ret && info_ret.succeeded && info_ret.result) {
+		alert('${Connotpastestask}');
+		return;
+	}
+
+
+	
+	if (copyedNode._type == "SPREADSHEET_REPORT" && node._type == "SELF_TREENODE") {
+		var ret = util.remoteInvokeEx("RepositoryService", "getInfoBySpreadsheetId", [ node._id ]);
+			if (ret && ret.succeeded && ret.result) {
+				flg = true;
+			}
+	}
+	
+	
+	if (copyedNode._type == "WORKFLOW" && node._type == "SELF_TREENODE") {
+		flg = true;
+	}
+	
+	if(flg){
+		alert('${Cannotpastetohere}');
+		return;
+	}
+	this.flow_pasteNode(node);
+}

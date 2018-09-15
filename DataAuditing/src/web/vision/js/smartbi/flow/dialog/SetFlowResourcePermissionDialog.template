@@ -1,0 +1,21 @@
+<table cellspacing="0" cellpadding="0" class="dialog-wrapper">
+  <tr style="padding-bottom:0px">			
+    <td height="100%" width="45%"> 
+    	<div id="tabPanel" class="_tabPanel" style="height:100%;width:100%;">
+    		<div id="list_role_div" class="_list_role_div" style="overflow:auto; height:100%;width:100%;background-color:#fff;"/>
+    		<div id="list_user_div" class="_list_user_div " style="overflow:auto; height:100%;width:100%;background-color:#fff;"/>
+    		<div id="list_express_div" class="_list_express_div" style="overflow:auto; height:100%;width:100%;background-color:#fff;"></div>
+    	</div>
+	</td>
+	
+	<td width="10%" align="center">
+		<INPUT class="_btnAdd" style="CURSOR: hand"  type="image" src="img/button/button_right_move.png" title="${Add}" />
+		<br>
+		<br>
+		<INPUT class="_btnRemove" style="CURSOR: hand"  type="image" src="img/button/button_left_move.png" title="${Delete}" />
+	</td>
+	
+	<td height="100%" width="45%" style="padding-top:20px"><div  class="_selected_user_div" style="height:100%;width:100%;;background-color:#fff;"></div>
+	</td>
+  </tr>
+</table>

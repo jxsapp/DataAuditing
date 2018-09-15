@@ -1,0 +1,38 @@
+SpreadsheetReportWriteBack.prototype.audit_doSaveClick = SpreadsheetReportWriteBack.prototype.doSaveClick;
+SpreadsheetReportWriteBack.prototype.doSaveClick = function(e) {
+
+  var reportResId = this.spreadsheetReport.queryId;
+  var util = jsloader.resolve("freequery.common.util");
+  var info = util.remoteInvoke("RepositoryService", "getInfoBySpreadsheetId", [ reportResId ]);
+  if(info && info.succeeded && info.result){
+  		//第一个节点流程信息
+	  var ret = util.remoteInvoke("RepositoryService", "getInfoByStartRoalAndSpreadsheetId", [reportResId]);
+	  //查找流程实例
+	  var instance  =  this.getInstanceBySpreadsheet(this.spreadsheetReport);
+	  //第一个节点可以启动流程，已经启动过流程的不能再启动流程
+	  if(ret.result&&!instance){
+	  	this.spreadsheetReport.startInstanceById(this.spreadsheetReport); 
+	  }
+	 
+	   var task = this.spreadsheetReport.getCurrentReportTask(this.spreadsheetReport);
+	   if(task){
+	  	 var ret = util.remoteInvoke("TaskService", "addOperationLog", [task.taskId,"${WorkflowTheFillInfo}"]);
+	   }  
+  }
+  
+  this.audit_doSaveClick(e);
+}
+
+SpreadsheetReportWriteBack.prototype.getInstanceBySpreadsheet = function(spreadsheetReport){
+	var reportResId = spreadsheetReport.queryId;
+	var parmas = spreadsheetReport.getWorkflowParams(reportResId, spreadsheetReport);
+	var isBySheetRet = util.remoteInvoke('RepositoryService', 'isBySheet', [ reportResId]);
+	var isBySheet = isBySheetRet.result;
+	var sheetName = spreadsheetReport.sheetNames[spreadsheetReport.currentSheetIndex];	
+	var resId = isBySheet?reportResId+"_"+sheetName:reportResId;
+	var ret = util.remoteInvoke("RuntimeService", "getInsBySpreadSheetAndParam", [ resId, parmas.mechanismParmas,
+			parmas.otherParmas ]);
+	if (ret.succeeded) {
+		return ret.result;
+	}
+}

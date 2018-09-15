@@ -1,0 +1,110 @@
+<table class="accordion_template" bofid="form" height="120px" width="100%" border="0">
+	<tr>
+		<td width="100%" height="100%" valign="top">
+			<table class="_contentTable flat" width="100%" height="120px" cellspacing="0"
+				cellpadding="0" style="table-layout: fixed;" bofid="contentTable">
+				<tr style="height: 40px; width: 100%;"
+					class="_content editblock_blank">
+					<td width="100px" align="left">${FlowName}${Colon}<font
+						color="red">*</font></td>
+					<td><input bofid="flowName" class="inputtext" maxlength="122"
+						value="" style="width: 60%;" /></td>
+				</tr>
+				<tr style="height: 40px; width: 100%;"
+					class="_content editblock_blank">
+					<td align="left">${Operator}${Colon}<font color="red">*</font></td>
+					<td><input bofid="assigneeAlias" class="inputtext" value=""
+						style="width: 60%;" readonly="readonly" />&nbsp;<input
+						type="button" id="btnSelectNextId" bofid="btnSelectNextId"
+						class="button-buttonbar-noimage" onclick="" value="${Select}"></td>
+				</tr>
+				<!-- 节点类型 -->
+				<tr style="height: 40px; width: 100%;" class="_content editblock_blank">
+				<td align="left">${NodeType}：<font color="red">*</font></td>
+				<td class="nodeType" >
+					<label style="width: 100%; line-height: 30px;" for="fill"><input
+						type="radio" name="nodeType"   value="fill"  >${Fill}</label>
+					<label style="width: 100%; line-height: 30px;" for="audit"><input
+						type="radio" name="nodeType"   value="summary">${Summary}</label>
+					<label style="width: 100%; line-height: 30px;" for="summary"><input
+						type="radio" name="nodeType"   value="audit">${Audit}</label>
+					<label style="width: 100%; line-height: 30px;" for="release"><input
+						type="radio" name="nodeType"   value="release">${Release}</label>
+				</td>
+				</tr>
+				<!-- 操作按钮  -->
+				<tr style="height: 40px; width: 100%;"
+					class="_content editblock_blank">
+					<td align="left">${OperationBUtton}：<font color="red">*</font></td>
+					<td><fieldset class="btn-group"><label style="width: 100%; line-height: 30px;"
+						for="import"><input type="checkBox" name="opt"
+							bofid="import" value="import">${Import}</label> <label
+						style="width: 100%; line-height: 30px;" for="fill"><input
+							type="checkBox" name="opt" bofid="fill" value="fill">${Fill}</label>
+						<label style="width: 100%; line-height: 30px;" for="summary"><input
+							type="checkBox" name="opt" bofid="summary" value="summary">${Summary}</label>
+						<label style="width: 100%; line-height: 30px;" for="verify"><input
+							type="checkBox" name="opt" bofid="verify" value="verify">${Validation}</label></fieldset>
+						<fieldset class="btn-group"><label style="width: 100%; line-height: 30px;" for="report"><input
+							type="checkBox" name="opt" bofid="report" value="report">${WorkflowCommitReport}</label>		
+						<label style="width: 100%; line-height: 30px;" for="audit"><input
+							type="checkBox" name="opt" bofid="audit" value="audit">${Audit}</label>		
+						<label style="width: 100%; line-height: 30px;" for="release"><input
+							type="checkBox" name="opt" bofid="release" value="release">${Release}</label>		
+						<label style="width: 100%; line-height: 30px;" for="backToPre"><input
+							type="checkBox" name="opt" bofid="backToPre" value="backToPre">${Fallback}</label>
+						<label style="width: 100%; line-height: 30px;" for="backToStart"><input
+							type="checkBox" name="opt" bofid="backToStart" value="backToStart">${FallbackToBegin}</label></fieldset>
+					</td>
+				</tr>
+				<!-- 待办流程仅发起人可见 -->
+				<tr style="height: 40px; width: 100%; display: none" class="_content editblock_blank" _itemClass="onlyOriginatorVisiable">
+					<td align="left">${FlowVisiableSetting}<font color="red">*</font></td>
+					<td>
+						<label style="width: 100%; line-height: 30px;" for="yes"><input
+							type="radio" name="visiableType" value="yes">${OriginatorCanSee}</label>
+							<label style="width: 100%; line-height: 30px;" for="no"><input
+							type="radio" name="visiableType" value="sameOrganization">${FlowSameOrgVisiable}</label>
+						<label style="width: 100%; line-height: 30px;" for="no"><input
+							type="radio" name="visiableType" value="no">${FlowAllVisiable}</label>
+					</td>
+				</tr>
+				<!-- <tr style="height: 40px; width: 100%;"
+					class="_content editblock_blank">
+					<td align="left">${WorkflowOperation}：<font color="red">*</font></td>
+					<td>
+						<label style="width: 100%; line-height: 30px;" for="report"><input
+							type="radio" name="workflow_opt" bofid="report" value="report"  >${WorkflowCommitReport}</label>
+						<label style="width: 100%; line-height: 30px;" for="audit"><input
+							type="radio" name="workflow_opt" bofid="audit" value="audit">${Audit}</label>
+						<label style="width: 100%; line-height: 30px;" for="release"><input
+							type="radio" name="workflow_opt" bofid="release" value="release">${Release}</label>
+					</td>
+				</tr>
+				 -->
+				<tr style="height: 90px; width: 100%; display:none;"
+					class="_content editblock_blank">
+					<td align="left">${ExecutionPeriod}${Colon}<font color="red">*</font></td>
+					<td><table width=100% height="90px">
+							<tr height=30px>
+								<td><label style="line-height: 30px;" for="nothing"><input
+										type="radio" name="life" value="nothing" bofid="lifeNone" />
+										${Nothing}</label></td>
+							</tr>
+							<tr height=30px>
+								<td bofid="monthDay"><label style="line-height: 30px;"
+									for="monthly"><input type="radio" name="life"
+										value="month" bofid="lifeMonth" /> ${Monthly}</label>&nbsp;</td>
+							</tr>
+							<tr height=30px>
+								<td bofid="quarterMonth"><label style="line-height: 30px;"
+									for="everyQuarter"><input type="radio" value="quarter"
+										name="life" bofid="lifeQuarter" /> ${EveryQuarter}</label>&nbsp;</td>
+							</tr>
+						</table></td>
+				</tr>
+			</table>
+		</td>
+	</tr>
+</table>
+

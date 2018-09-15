@@ -1,0 +1,66 @@
+/**
+ * 更新/显示搜索结果
+ */
+QuickSearchWrapper.prototype._dataAuditing_updateList = QuickSearchWrapper.prototype.updateList;
+QuickSearchWrapper.prototype.updateList = function(elems, key) {
+  this.filterAuditResult(elems);
+  return this._dataAuditing_updateList(elems, key);
+}
+
+QuickSearchWrapper.prototype.filterAuditResult = function(result) {
+  if (util.hasLicense('ReportAudit') || !result || result.length == 0) {
+    return;
+  }
+
+  function checkIsFlowId(flows, children) {
+    if (!flows) {
+      return false;
+    }
+    for (var i = 0; i < flows.result.length; i++) {
+      if (flows.result[i].name == children.id || flows.result[i].name == children.name) {
+        return true;
+      }
+    }
+    return false;
+  }
+  var taskFlows, schedulesFlows, hasGetTask, hasGetSchedules;// SCHEDULES //TASKS
+  for (var i = 0; i < result.length; i++) {
+    if (hasGetTask && hasGetSchedules && taskFlows && schedulesFlows && taskFlows.length == 0
+        && schedulesFlows.length == 0) {
+      break;
+    }
+
+    var children = result[i];
+    if (children.type == 'WORKFLOW' || children.type == 'SCHEDULE' || children.type == 'TASK') {
+      if (!hasGetSchedules) {
+        var sc = util.remoteInvoke('CatalogService', 'getChildElements', [ 'SCHEDULES' ]);
+        hasGetSchedules = true;
+        if (sc.result && sc.result.length > 0) {
+          for (var j = 0; j < sc.result.length; j++) {
+            if (sc.result[j].name == 'workflow') {
+              schedulesFlows = util.remoteInvoke('CatalogService', 'getChildElements', [ sc.result[j].id ]);
+              break;
+            }
+          }
+        }
+      }
+
+      if (!hasGetTask) {
+        var tc = util.remoteInvoke('CatalogService', 'getChildElements', [ 'TASKS' ]);
+        hasGetTask = true;
+        if (tc.result && tc.result.length > 0) {
+          for (var j = 0; j < tc.result.length; j++) {
+            if (tc.result[j].name == 'workflow') {
+              taskFlows = util.remoteInvoke('CatalogService', 'getChildElements', [ tc.result[j].id ]);
+              break;
+            }
+          }
+        }
+      }
+      if (checkIsFlowId(taskFlows, children) || checkIsFlowId(schedulesFlows, children)) {
+        result.splice(i, 1);
+        i--;
+      }
+    }
+  }
+}

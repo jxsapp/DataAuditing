@@ -1,0 +1,115 @@
+.task{
+	cursor: pointer;
+	width: 16px;
+	height: 52px;
+	line-height: 52px;
+	padding: 0 8px;
+	float: right;
+	background:url(../writeCustomBgImg.jsp?theType=MyToDoListImg) no-repeat center center;
+}
+.task:hover {
+	background-color: #2E3E66;
+}
+
+.notice {
+	cursor: pointer;
+	width: 18px;
+	height: 18px;
+	float: right;
+	background-color: red;
+	margin-top: 7px;
+	margin-left:-12px;
+	border-radius: 50%;
+	-moz-border-radius: 50%;
+	-webkit-border-radius: 50%;
+	line-height: 18px;
+	color: #FFFFFF;
+	font-size: 12px;
+	text-align: center;
+	position:relative;
+	/*z-index:9999; */
+	filter:alpha(opacity=90);
+	-moz-opacity:0.9;
+	opacity:0.9;
+}
+
+
+.toggle {
+	width: 100%;
+	float:right;
+	 /* margin: 20px auto; */
+}
+
+.toggle dl dt {
+	height: 35px;
+	width: 100%;
+	line-height: 35px;
+	margin: 8px 0 0 0px;
+	display: block;
+}
+
+.toggle dl dt dt2 {
+	height: 35px;
+	width: 80%;
+	line-height: 35px;
+	font-size: 16px;
+	text-align:left;
+	color: #000000;
+	cursor: pointer;
+	margin: 8px 0 0 0px;
+	padding-left: 25px;
+	border: solid 2px #EFF0EE;
+	display: inline-block;
+}
+
+.toggle dl dt dt2.current {
+	background: #EFF0EE ;
+}
+
+.toggle dl dt btnadd{
+	height: 35px;
+	width: 35px;
+	line-height: 35px;
+	font-size: 16px;
+	color: #000000;
+	cursor: pointer;
+	margin: 8px 0 0 5px;
+	border: solid 2px #EFF0EE;
+	display: inline-block;
+}
+
+.toggle dl dt btndel{
+	height: 35px;
+	width: 35px;
+	line-height: 35px;
+	font-size: 16px;
+	color: #000000;
+	cursor: pointer;
+	margin: 8px 0 0 5px;
+	border: solid 2px #EFF0EE;
+	display: inline-block;
+}
+
+.toggle dl dd {
+	padding-left: 10px;
+	line-height: 24px;
+}
+
+.toggle dl dd h2 {
+	font-size: 15px;
+}
+
+.toggle dl dd ul {
+	padding-bottom: 12px;
+}
+
+.toggle dl dd ul li {
+	list-style: decimal inside none;
+}
+
+.btn-group {
+	display: inline-block;
+    padding: 0 4px;
+    margin: 0;
+    border: 1px solid #DCD9D5;
+}

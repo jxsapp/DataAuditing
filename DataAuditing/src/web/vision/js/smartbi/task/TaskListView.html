@@ -1,0 +1,36 @@
+<table bofid="form" width="100%" height="100%"  border="0" style="margin-top:0px;" cellspacing="0" cellpadding="0" >
+	<tr bofid="page">
+		<td align = "left" width="100%">&nbsp;
+		    <input type="button" class="pagebar-btn" value="[${FirstPage}]" bofid="firstPage" />
+			<input type="button" class="pagebar-btn" value="[${PreviousPage}]" bofid="prevPage" />
+			<input type="button" class="pagebar-btn" value="[${NextPage}]" bofid="nextPage" />
+			<input type="button" class="pagebar-btn" value="[${LastPage}]" bofid="lastPage" />
+			&nbsp;${The}<input bofid="curPage" type="text" value="1" style="width:34px; height:16px;border: 0px;border-top: 1px solid #919B9C;border-bottom: 1px solid #919B9C;border-left: 1px solid #919B9C;border-right: 1px solid #919B9C;">${PageNo}${Comma}
+			${Total}<span bofid="pageCount">&nbsp;</span>${PageNo}
+			${Eachpage}<input type="text" bofid="rowCount"  style="width:34px; height:16px;border: 0px;border-top: 1px solid #919B9C;border-bottom: 1px solid #919B9C;border-left: 1px solid #919B9C;border-right: 1px solid #919B9C;">${Line}${Comma}
+			${Total}<span bofid="allRowCount">&nbsp;</span>${Rows}
+			 <input bofid="_btnRefresh" type="button" title="${Refresh}" class="_btnRefresh queryview-toolbar-button queryview-toolbar-refresh" >
+		</td>
+	</tr>
+	<tr>
+		<td height="5px"></td>
+	</tr>
+	<tr height = "100%">
+		<td height="100%">
+			<div style="overflow:auto;height:100%;" bofid="tdiv">
+	<table width="100%" border="0" cellspacing="0" cellpadding="0" style="table-layout : fixed; word-break : break-all" class ="listView-table">
+	  <tbody bofid="tbody">
+	    <tr style="position:relative;" id="listTr">
+			<td width = "15%" class="listView-table-top">&nbsp;流程名称</td>
+			<td width = "15%" class="listView-table-top">&nbsp;电子表格名称</td>
+			<td width = "10%" class="listView-table-top">&nbsp;任务名称</td>
+			<td width = "10%" class="listView-table-top">&nbsp;状态</td>
+			<td width = "15%" class="listView-table-top">&nbsp;机构参数</td>
+			<td width = "15%" class="listView-table-top">&nbsp;其他参数</td>
+			<td width = "20%" class="listView-table-top">&nbsp;创建时间</td>
+		 </tr>
+	   </tbody>
+	</table>
+	</div>
+	</td></tr>
+</table>

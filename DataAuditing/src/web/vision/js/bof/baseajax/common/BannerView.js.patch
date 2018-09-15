@@ -1,0 +1,116 @@
+BannerView.prototype.dataAuditing_doCmd = BannerView.prototype.doCmd;
+BannerView.prototype.audit_initCreateNewMenus = BannerView.prototype.initCreateNewMenus;
+var MyTaskCommand = null;
+var MyInstanceCommand = null;
+BannerView.prototype.initCreateNewMenus = function() {
+	this.audit_initCreateNewMenus();
+	registry.put("bannerView",this);
+	if(!util.hasLicense("WriteBack") || !Util.getInstance().hasLicense('ReportAudit')){
+		this.hasWorkflow = false;
+		return
+	}
+	this.addItemHelpFn(BannerView.prototype.addDataAuditingItems);
+	var ret = util.remoteInvoke("RepositoryService", "getAllWorkflowInfo", []);
+	this.hasWorkflow = false;
+	if(ret && ret.succeeded && ret.result&&ret.result.length>0){
+		this.addBannerTask();
+		this.hasWorkflow = true;
+	}
+	
+	
+}
+
+BannerView.prototype.addDataAuditingItems = function(context, action){
+	if (util.checkFunctionValid("MANAGE_TOOLKIT_MONITORWORKFLOW") && context.hasWorkflow){
+		var parentElem = context.elemItems;
+		context.addMenu('${MonitorWorkflow}', 'MY_INSTANCE', parentElem);
+	}
+	if(context.hasWorkflow){
+		context.addNotice();
+	}
+}
+
+BannerView.prototype.addBannerTask = function(){
+		if(Util.getInstance().hasLicense('ReportAudit') && !this.bannertask){
+	    	this.bannertask = document.createElement("span");  	
+		    this.bannertask.className = "task";
+		    this.bannertask.title = "${MyFlowTask}";
+		  /* this.bannertask.style.backgroundImage= "url(img/button/verify/bannerTask.png)";*/
+		    this.elemCreateAnalysis.parentNode.insertBefore(this.bannertask, this.elemCreateAnalysis);	    
+	    	this.addListener(this.bannertask, 'click', function(ev) {
+					this.openMyTask();
+				}, this);
+	    }
+}
+
+BannerView.prototype.addNotice = function(){
+	var taskList = util.remoteInvoke("TaskService", "taskByAssignee", [ "unfinished"]);
+	if(this.bannertask&&taskList&&taskList.result&&taskList.result.length>0){
+		if(!this.notice){
+	    	this.notice = document.createElement("span");  	
+		    this.notice.className = "notice";
+		    this.notice.innerText = taskList.result.length;
+		    this.notice.style.display = "block";
+		    this.bannertask.parentNode.insertBefore(this.notice, this.bannertask);
+		    this.addListener(this.notice, 'click', function(ev) {
+					this.openMyTask();
+				}, this);
+	    }else{   
+	   		this.notice.style.display = "block";
+	    	this.notice.innerText = taskList.result.length;
+	    }
+	}else{
+		if(this.notice){	
+		    this.notice.className = "notice";
+		    this.notice.style.display = "none";
+		    this.notice.innerText = taskList.result.length;
+		    this.bannertask.parentNode.insertBefore(this.notice, this.bannertask);
+	    }
+	}
+}
+
+BannerView.prototype.openMyTask = function() {
+	var action = 'OPEN';
+	var manager = registry.get('CurrentManager');
+	var tabId = [ 'MySettings', action ];
+	var tab = manager.createTab(tabId, '${MyBacklog}');
+	if (!tab) {
+		return;
+	}
+	if (MyTaskCommand == null) {
+		MyTaskCommand = jsloader.resolve("smartbi.task.MyTaskCommand");
+	}
+	var command =  new MyTaskCommand();
+	command.onClose.subscribe(function() {
+		tab.doClose();
+	}, this);
+	command.execute(action);
+	manager.setCommand(tab, command);
+};
+
+BannerView.prototype.openInstance = function() {
+	var action = 'OPEN';
+	var manager = registry.get('CurrentManager');
+	var tabId = [ 'MyInstance', action ];
+	var tab = manager.createTab(tabId, '${MonitorWorkflow}');
+	if (!tab) {
+		return;
+	}
+	if (MyInstanceCommand == null) {
+		MyInstanceCommand = jsloader.resolve("smartbi.workflow.MyInstanceCommand")
+	}
+	var command =  new MyInstanceCommand();
+	command.onClose.subscribe(function() {
+		tab.doClose();
+	}, this);
+	command.execute(action);
+	manager.setCommand(tab, command);
+};
+
+BannerView.prototype.doCmd = function(cmd, ev){
+	if(cmd == "MY_INSTANCE"){
+		this.openInstance();
+	}
+	this.dataAuditing_doCmd(cmd, ev);
+	
+}

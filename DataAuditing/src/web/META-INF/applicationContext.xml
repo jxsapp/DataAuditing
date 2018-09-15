@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE beans PUBLIC "-//SPRING//DTD BEAN 2.0//EN" "http://www.springframework.org/dtd/spring-beans-2.0.dtd">
+<beans>
+	
+    <bean id="framework" class="smartbi.framework.Framework" factory-method="getInstance">
+        <property name="modules">
+			<map>
+				<entry><key><value>dataAuditingModule</value></key><ref bean="dataAuditingModule" /></entry>
+				<entry><key><value>RepositoryService</value></key><ref bean="repositoryService" /></entry>
+				<entry><key><value>TaskService</value></key><ref bean="taskService" /></entry>
+				<entry><key><value>RuntimeService</value></key><ref bean="runtimeService" /></entry>
+			</map>
+        </property>
+    </bean>
+    
+    <bean id="rmi" class="smartbi.framework.rmi.RMIModule" factory-method="getInstance">
+        <property name="modules">
+			<map>
+				<entry><key><value>RepositoryService</value></key><ref bean="repositoryService" /></entry>
+				<entry><key><value>TaskService</value></key><ref bean="taskService" /></entry>
+				<entry><key><value>RuntimeService</value></key><ref bean="runtimeService" /></entry>
+			</map>
+        </property>
+    </bean>
+    <bean id="dataAuditingModule" class="smartbi.auditing.DataAuditingModule" factory-method="getInstance">
+	</bean>
+	
+	<bean id="repositoryService" class="smartbi.auditing.service.RepositoryService" factory-method="getInstance">
+		<property name="daoModule" ref="dao"/> 
+		<property name="catalogTreeModule" ref="catalogtree"/>
+		<property name="metadataModule" ref="metadata"/>
+		<property name="macroService" ref="macro"/>
+	</bean>
+	  <bean id="taskService" class="smartbi.auditing.service.TaskService" factory-method="getInstance">
+	  <property name="daoModule" ref="dao"/> 
+		<property name="runtimeService" ref="runtimeService"/> 
+   	 	
+	</bean>
+	<bean id="runtimeService" class="smartbi.auditing.service.RuntimeService" factory-method="getInstance">
+		<property name="daoModule" ref="dao"/> 
+		<property name="taskService" ref="taskService"/> 
+		<property name="repositoryService" ref="repositoryService"/> 
+	</bean>
+</beans>

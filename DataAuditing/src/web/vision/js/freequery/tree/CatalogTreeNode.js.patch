@@ -1,0 +1,36 @@
+CatalogTreeNode.prototype.remoteCallback = function(result) {
+	if (!this.tree) {
+		return;
+	}	
+	if (result.result && result.result.length >= 2 && result.result[1].name == "workflow") {
+		if ((result.result[1].type == "TASKS" || result.result[1].type == "SCHEDULES") 
+				&& !util.hasLicense("ReportAudit")) {
+			result.result.splice(1, 1);
+		}
+	}
+	if(this._type !== "LINK_VIEW"){
+		result = this.reInitChildren(result);
+	}
+	this.filterResult(result);
+	if (result.succeeded) {
+		for (var i = 0; i < result.result.length; i++) {
+			if (this.tree.searchCondition) {
+				// 取消了调用服务器端方法进行判断的的方式${Comma}直接使用在客户端缓存的搜索结果
+				// ret = util.remoteInvokeEx("CatalogService", "isContainsNodeId",
+				// [result.result[i].id]);
+				// if(ret.result){
+				if (this.tree.searchNodeIdArray[result.result[i].id]) {
+					this.addCatalogTreeNode(result.result[i]);
+				}
+			} else {
+				this.addCatalogTreeNode(result.result[i]);
+			}
+		}
+	} else {
+		modalWindow.showServerError(result);
+	}
+	delete this.bizAttributeCache;
+	this.isLoading = false;
+	this.initExpanderImg();
+	this.tree.onNodeInitComplete.fire(this.tree, this);
+};

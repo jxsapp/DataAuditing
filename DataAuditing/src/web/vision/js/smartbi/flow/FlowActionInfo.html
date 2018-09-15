@@ -1,0 +1,80 @@
+<table bofid="form" height="100%" width="100%" border="0" cellspacing="0" cellpadding="0" style="table-layout : fixed;">
+    <tr class="_content">
+        <td width="100%" height="100%" valign="top">
+            <DIV class="searchResult editblock">
+                <table class="_contentTable flat" width="100%" cellspacing="0" cellpadding="0" style="table-layout : fixed;" bofid = "contentTable">
+                <tr style="height: 45px;width: 100%;" class="_content editblock_blank"> 
+                    <td width=130px align="left">${SpreadSheetId}${Colon}<font color="red">*</font></td>
+                    <td>
+                    	<input name="spreadSheetId" type="hidden" bofid="spreadSheetId" id="spreadSheetId" value="" />
+                        <input name="spreadSheet" bofid="spreadSheet" class="inputtext" maxlength="122" value="" style="width:100%;" readonly="readonly"/>
+                    </td>
+                    <td><input type="button" id="bnSelectId"
+						bofid="bnSelectId" class="button-buttonbar-noimage" onclick=""
+						value="${Select}"></td>
+					<td style="">&nbsp;</td>
+                </tr>
+                <tr style="height: 45px;width: 100%;" class="_content editblock_blank"> 
+                    <td align="left">${MechanismParameters}${Colon}</td>
+                    <td>
+                    	<input name="mechanismParametersId" type="hidden" bofid="mechanismParametersId" id="mechanismParametersId" value="" />
+                        <input name="mechanismParameters" bofid="mechanismParameters" class="inputtext" maxlength="122" value="" style="width:100%;" readonly="readonly"/> 
+                    </td>
+                     <td><input type="button" id="bnMechanismParameters"
+						bofid="btnMechanismParameters" class="button-buttonbar-noimage" onclick=""
+						value="${Select}"></td>
+					<td style="">&nbsp;</td>
+                </tr>
+                <tr style="height: 45px;width: 100%;" class="_content editblock_blank"> 
+                    <td align="left">${ProcessParameters}${Colon}</td>
+                    <td>
+                        <input name="processParametersId" type="hidden" bofid="processParametersId" id="mechanismParametersId" value="" />
+                        <input name="processParameters" bofid="processParameters" class="inputtext" maxlength="122" value="" style="width:100%;" readonly="readonly"/> 
+                    </td>
+                    <td><input type="button" id="bnMechanismParameters"
+						bofid="btnParameters" class="button-buttonbar-noimage" onclick=""
+						value="${Select}"></td>
+					<td style="">&nbsp;</td>
+                </tr>
+                <tr style="height: 45px;width: 100%;" class="_content editblock_blank"> 
+                    <td align="left">${ProcessVerifySheet}${Colon}</td>
+                    <td>
+                        <input name="processVerifySheet" bofid="processVerifySheet" class="inputtext" maxlength="122" value="" style="width:100%;" /> 
+                    </td>
+					<td colspan="2">&nbsp;</td>
+                </tr>
+                <tr style="height: 45px;width: 100%;" class="_content editblock_blank"> 
+                    <td align="left">${AutoStartFlowConfig}${Colon}</td>
+                    <td colspan="3"><table width=100%>
+							<tr height=30px>
+								<td><label style="line-height: 30px;" for="nothing"><input
+										type="radio" name="life" value="nothing" bofid="lifeNone" />
+										${DonotAutoStart}</label></td>
+							</tr>
+							<tr height=30px>
+								<td><label style="line-height: 30px;"><input type="radio" name="life"
+										value="day" bofid="lifeDay" /> ${EveryDay}</label>&nbsp;</td>
+							</tr>
+							<tr height=30px>
+								<td><span bofid="monthDay"><label style="line-height: 30px;"
+									for="monthly"><input type="radio" name="life"
+										value="month" bofid="lifeMonth" /> ${Monthly}</label></span>&nbsp;<font color="gray">(${LRepresentLastDay})</font></td>
+							</tr>
+							<tr height=30px>
+								<td><span bofid="quarterMonth"><label style="line-height: 30px;"
+									for="everyQuarter"><input type="radio" value="quarter"
+										name="life" bofid="lifeQuarter" /> ${EveryQuarter}</label></span>&nbsp;<font color="gray">(${LRepresentLastDay})</font></td>
+							</tr>
+						</table>
+                    </td>
+                </tr>
+                <tr style="height: 45px;width: 100%;" class="_content editblock_blank">
+					<td colspan="4"><input type="checkBox" bofid="singleSheet"
+							id="singleSheet"><label for="flowStatus">${FlowStatus}</label>
+					</td>
+				</tr>
+			   </table>
+            </DIV>
+        </td>
+    </tr>
+</table>
